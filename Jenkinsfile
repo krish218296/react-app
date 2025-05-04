@@ -1,12 +1,40 @@
 pipeline {
     agent any
+
+    environment {
+        JAVA_HOME = "${WORKSPACE}/java21"
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
+    }
+
     stages {
+        stage('Download Java 21') {
+            steps {
+                sh '''
+                    echo "Downloading Amazon Corretto 21..."
+                    curl -L -o corretto.tar.gz https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.tar.gz
+                    mkdir -p java21
+                    tar -xzf corretto.tar.gz -C java21 --strip-components=1
+                    rm corretto.tar.gz
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    echo "Java version:"
+                    java -version
+                    ./gradlew build --no-daemon
+                '''
+            }
+      } 
+
         stage('Build') {
             steps {
                 echo 'Running build automation'
                 sh 'chmod +x gradlew'
                 sh './gradlew build --no-daemon'
-                archiveArtifacts artifacts: 'dist/reactApp'
+                archiveArtifacts artifacts: 'build/dist/reactApp'
             }
         }
         stage('Build Docker Image') {
@@ -15,7 +43,7 @@ pipeline {
             }
             steps {
                 script {
-                    app = docker.build("Krishna22560/react-app")
+                    app = docker.build("krishna22560/react-app")
                     app.inside {
                         sh 'echo $(curl localhost:1233)'
                     }
@@ -41,14 +69,14 @@ pipeline {
             }
             steps {
                     script {
-                        sh "docker pull Krishna22560/react-app:${env.BUILD_NUMBER}"
+                        sh "docker pull krishna22560/react-app:${env.BUILD_NUMBER}"
                         try {
                             sh "docker stop react-app"
                             sh "docker rm react-app"
                         } catch (err) {
                             echo: 'caught error: $err'
                         }
-                        sh "docker run --restart always --name react-app -p 1233:80 -d Krishna22560/react-app:${env.BUILD_NUMBER}"
+                        sh "docker run --restart always --name react-app -p 1233:80 -d krishna22560/react-app:${env.BUILD_NUMBER}"
                     }
             }
         }
@@ -80,14 +108,14 @@ pipeline {
                 input 'Does the staging environment look OK? Did You get 200 response?'
                  milestone(1)
                     script {
-                        sh "docker pull wessamabdelwahab/react-app:${env.BUILD_NUMBER}"
+                        sh "docker pull krishna22560/react-app:${env.BUILD_NUMBER}"
                         try {
                             sh "docker stop react-app"
                             sh "docker rm react-app"
                         } catch (err) {
                             echo: 'caught error: $err'
                         }
-                        sh "docker run --restart always --name react-app -p 1233:80 -d Krishna22560/react-app:${env.BUILD_NUMBER}"
+                        sh "docker run --restart always --name react-app -p 1233:80 -d krishna22560/react-app:${env.BUILD_NUMBER}"
                     }
             }
         }
